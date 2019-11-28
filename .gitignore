@@ -1,0 +1,6 @@
+*.csv
+*.ipynb
+*.pkl
+*.json
+data/*
+preprocessing/*
