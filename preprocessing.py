@@ -28,7 +28,7 @@ def main(args):
         for i in range(metr.shape[0] - 24):
             input_ = metr[col].iloc[i:i+12]
             output_ = metr[col].iloc[i+12:i+24]
-            prev.prev_metr(input_.tolist())
+            prev_metr.append(input_.tolist())
             after_metr.append(output_.tolist())
 
     print('Saving...')
