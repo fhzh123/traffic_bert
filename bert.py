@@ -25,12 +25,12 @@ class littleBERT(nn.Module):
         self.dropout = nn.Dropout(dropout)
         self.embedding_dropout = embedding_dropout
 
-        # Source embedding part
-        self.embed1 = nn.Linear(1, d_embedding) # for other fine dust
-        self.embed2 = nn.Linear(1, d_embedding) # for previous pm10
-        self.embed3 = nn.Linear(1, d_embedding) # for special token
+        # Source Embedding Part
+        self.embed = nn.Linear(1, d_embedding)
 
+        # Output Linear Part
         self.src_output_linear = nn.Linear(d_model, d_embedding)
+        self.src_output_bilinear = nn.Bilinear(d_embedding, d_embedding, d_embedding)
         self.src_output_linear2 = nn.Linear(d_embedding, 1)
 
         # Transformer
@@ -39,34 +39,36 @@ class littleBERT(nn.Module):
             TransformerEncoderLayer(d_model, encoder_self_attn, dim_feedforward,
                 activation='gelu', dropout=dropout) for i in range(n_layers)])
 
-    def forward(self, src1, src2, device):
+    def forward(self, src, src_rev):
 
-        emb1 = self.embed1(src1.unsqueeze(2)).to(device)
-        emb2 = self.embed2(src2.unsqueeze(2)).to(device)
-        emb_pred = self.embed3(torch.FloatTensor([[0] for _ in range(emb1.size(0))]).to(device)).unsqueeze(1)
-
-        encoder_out = torch.cat((emb1, emb_pred, emb2), dim=1)
+        encoder_out1 = self.embed(src).transpose(0, 1)
+        encoder_out2 = self.embed(src_rev).transpose(0, 1)
 
         for i in range(len(self.encoders)):
-            encoder_out = self.encoders[i](encoder_out)
+            encoder_out1 = self.encoders[i](encoder_out1)
+        for i in range(len(self.encoders)):
+            encoder_out2 = self.encoders[i](encoder_out2)
         
-        encoder_out = self.dropout(F.gelu(self.src_output_linear(encoder_out)))
+        encoder_out1 = self.dropout(F.gelu(self.src_output_linear(encoder_out1)))
+        encoder_out2 = self.dropout(F.gelu(self.src_output_linear(encoder_out2)))
+        encoder_out = self.src_output_bilinear(encoder_out1, encoder_out2)
         encoder_out = self.src_output_linear2(encoder_out).transpose(0, 1).contiguous()
 
         return encoder_out
 
     def predict(self, src1, src2):
 
-        emb1 = self.embed1(src1.unsqueeze(2))
-        emb2 = self.embed2(src2.unsqueeze(2))
-        emb_pred = self.embed3(torch.FloatTensor([[0], [0]])).unsqueeze(1)
-
-        encoder_out = torch.cat((emb1, emb_pred, emb2), dim=1)
+        encoder_out1 = self.embed(src).transpose(0, 1)
+        encoder_out2 = self.embed(src_rev).transpose(0, 1)
 
         for i in range(len(self.encoders)):
-            encoder_out = self.encoders[i](encoder_out)
+            encoder_out1 = self.encoders[i](encoder_out1)
+        for i in range(len(self.encoders)):
+            encoder_out2 = self.encoders[i](encoder_out2)
         
-        encoder_out = F.gelu(self.src_output_linear(encoder_out))
+        encoder_out1 = F.gelu(self.src_output_linear(encoder_out1))
+        encoder_out2 = F.gelu(self.src_output_linear(encoder_out2))
+        encoder_out = self.src_output_bilinear(encoder_out1, encoder_out2)
         encoder_out = self.src_output_linear2(encoder_out).transpose(0, 1).contiguous()
 
         return encoder_out
