@@ -11,7 +11,6 @@ import torch.nn.functional as F
 from torch.nn.modules.activation import MultiheadAttention
 
 # Import Custom Module
-from embedding import TransformerEmbedding
 
 class littleBERT(nn.Module):
     def __init__(self, n_head, d_model=512, d_embedding=256, 
@@ -26,7 +25,8 @@ class littleBERT(nn.Module):
         self.embedding_dropout = embedding_dropout
 
         # Source Embedding Part
-        self.embed = nn.Linear(1, d_embedding)
+        self.embed1 = nn.Linear(1, d_embedding)
+        self.embed2 = nn.Linear(d_embedding, d_model)
 
         # Output Linear Part
         self.src_output_linear = nn.Linear(d_model, d_embedding)
@@ -41,8 +41,8 @@ class littleBERT(nn.Module):
 
     def forward(self, src, src_rev):
 
-        encoder_out1 = self.embed(src).transpose(0, 1)
-        encoder_out2 = self.embed(src_rev).transpose(0, 1)
+        encoder_out1 = self.embed2(self.embed1(src.unsqueeze(2))).transpose(0, 1)
+        encoder_out2 = self.embed2(self.embed1(src_rev.unsqueeze(2))).transpose(0, 1)
 
         for i in range(len(self.encoders)):
             encoder_out1 = self.encoders[i](encoder_out1)
@@ -89,9 +89,8 @@ class TransformerEncoderLayer(nn.Module):
         self.dropout1 = nn.Dropout(dropout)
         self.dropout2 = nn.Dropout(dropout)
 
-    def forward(self, src, src_mask=None, src_key_padding_mask=None):
-        src2 = self.self_attn(src, src, src, attn_mask=src_mask,
-                              key_padding_mask=src_key_padding_mask)[0]
+    def forward(self, src, src_mask=None):
+        src2 = self.self_attn(src, src, src)[0]
         src = src + self.dropout1(src2)
         src = self.norm1(src)
         src2 = self.linear2(self.dropout(F.gelu(self.linear1(src))))

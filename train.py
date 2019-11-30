@@ -1,7 +1,10 @@
-# Import Modules
+# Import Module
+import os
+import h5py
 import time
+import argparse
+import numpy as np
 import pandas as pd
-from glob import glob
 from tqdm import tqdm
 
 # Import PyTorch
@@ -10,71 +13,162 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.utils as torch_utils
 
-# Import Custom Modules
-from dataset import CustomDataset, getDataLoader
+# Import Custom Module
 from bert import littleBERT
+from dataset import CustomDataset, Transpose_tensor, getDataLoader
 
-# Device Setting
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+def main(args):
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# Data Preprocessing
-dat_list = sorted(glob('./data/*.xls'), reverse=True)
-for i, data in enumerate(dat_list):
-    if i == 0:
-        dat = pd.read_excel(data)
-    else:
-        dat = pd.concat([dat, pd.read_excel(data)])
-dat = dat.iloc[::-1]
-dat.index = range(len(dat))
-dat['month'] = dat['date'].map(lambda x: int(x[5:7]))
-dat['day'] = dat['date'].map(lambda x: int(x[8:10]))
-dat['time'] = dat['date'].map(lambda x: int(x[-2:]))
-dat = dat.drop(columns = 'date')
-dat = dat.dropna()
-x1 = list()
-x2 = list()
-y = list()
-for t in tqdm(range(5, len(dat) - 8)):
-    y.append(dat.iloc[t+8]['pm10'])
-    # x1.append(dat.iloc[t][['Pm2.5', 'ozone', 'nitrogen', 'carbon', 'sulfur']].tolist())
-    x1.append(dat['Pm2.5'].loc[t-5:t-1].tolist())
-    x2.append(dat['pm10'].loc[t-5:t-1].tolist())
+    # Load Data
+    print('Data Loading...')
+    start_time = time.time()
 
-# CustomDataset and DataLoader
-train_dataset = CustomDataset(x1, x2, y)
-train_loader = getDataLoader(train_dataset, 4, True)
+    with h5py.File(args.data_path, 'r') as f:
+        # List all groups
+        print("Keys: %s" % f.keys())
+        src = list(f.keys())[0]
+        trg = list(f.keys())[1]
 
-model = littleBERT(n_head=12, d_model=768, d_embedding=768, n_layers=24,
-                   dim_feedforward=768 * 4, dropout=0.1)
-model.to(device)
-optimizer = optim.Adam(model.parameters(), lr=1e-4)
-scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.5)
-criterion = nn.L1Loss()
-torch_utils.clip_grad_norm_(model.parameters(), 5)
-start_time = time.time()
-for epoch in range(10):
-    print('Epoch {}/{}'.format(epoch + 1, 5))
-    print('-' * 100)
-    model.train()
-    running_loss = 0.0
-    
-    for src1, src2, trg in tqdm(train_loader):
-        src1 = src1.to(device)
-        src2 = src2.to(device)
-        trg = trg.to(device)
-        optimizer.zero_grad()
-        with torch.set_grad_enabled('train' == 'train'):
-            outputs = model(src1, src2, device)
-            output_last_token = outputs[5].squeeze(1)
-            loss = criterion(output_last_token, trg)
-            loss.backward()
-            optimizer.step()
+        pems_src_data = list(f[src])
+        pems_trg_data = list(f[trg])
+        
+    spend_time = round((time.time() - start_time) / 60, 4)
+    print(f'Done...! / {spend_time}min spend...!')
 
-        # Statistics
-        running_loss += loss.item() * src1.size(0)
+    # Train & Valid & Test Split
+    print('Data Splitting...')
+    start_time = time.time()
 
-    # Epoch loss calculate
-    epoch_loss = running_loss / len(train_dataset)
-    scheduler.step(epoch)
-    spend_time = (time.time() - start_time) / 60
-    print('{} Loss: {:.4f} Acc: {:.4f} Time: {:.4f}min'.format('train', epoch_loss, 0, spend_time))
+    data_len = len(pems_src_data)
+    train_len = int(data_len * 0.6)
+    valid_len = int(data_len * 0.2)
+
+    train_index = np.random.choice(data_len, train_len, replace = False) 
+    valid_index = np.random.choice(list(set(range(data_len)) - set(train_index)), valid_len, replace = False)
+    test_index = set(range(data_len)) - set(train_index) - set(valid_index)
+
+    train_pems_src = [pems_src_data[i] for i in train_index]
+    train_pems_trg = [pems_trg_data[i] for i in train_index]
+    valid_pems_src = [pems_src_data[i] for i in valid_index]
+    valid_pems_trg = [pems_trg_data[i] for i in valid_index]
+    train_pems_src = [pems_src_data[i] for i in test_index]
+    train_pems_trg = [pems_trg_data[i] for i in test_index]
+
+    dataset_dict = {
+        'train': CustomDataset(src=train_pems_src, trg=train_pems_trg),
+        'valid': CustomDataset(src=valid_pems_src, trg=valid_pems_trg),
+        'test': CustomDataset(src=test_pems_src, trg=test_pems_trg)
+    }
+    dataloader_dict = {
+        'train': getDataLoader(dataset_dict['train'], args.batch_size, True),
+        'valid': getDataLoader(dataset_dict['valid'], args.batch_size, True),
+        'test': getDataLoader(dataset_dict['test'], args.batch_size, True)
+    }
+
+    spend_time = round((time.time() - start_time) / 60, 4)
+    print(f'Done...! / {spend_time}min spend...!')
+
+    # Train & Valid & Test Split
+    print('Model Setting...')
+    start_time = time.time()
+
+    model = littleBERT(n_head=args.n_head, d_model=args.d_model, d_embedding=args.d_embedding, 
+                    n_layers=args.n_layers, dim_feedforward=args.dim_feedforward, dropout=args.dropout)
+    optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.w_decay)
+    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=args.lr_decay_step, gamma=args.lr_decay)
+    criterion = nn.MSELoss()
+    torch_utils.clip_grad_norm_(model.parameters(), args.grad_clip)
+    model.to(device)
+
+    spend_time = round((time.time() - start_time) / 60, 4)
+    print(f'Done...! / {spend_time}min spend...!')
+
+    # Preparing
+    best_val_loss = None
+    if not os.path.exists('./save'):
+        os.mkdir('./save')
+
+    #
+    for e in range(args.num_epoch):
+        for phase in ['train', 'valid']:
+            # Preparing
+            total_loss_list = list()
+            freq = args.print_freq - 1
+            # Model Setting
+            if phase == 'train':
+                model.train()
+            if phase == 'valid':
+                model.eval()
+                val_loss = 0
+            for src, src_rev, trg in tqdm(train_dataloader):
+                # Input to Device(CUDA)
+                src = src.to(device)
+                src_rev = src_rev.to(device)
+                trg = trg.to(device)
+
+                # Optimizer Setting
+                optimizer.zero_grad()
+
+                # Model Training & Validation
+                with torch.set_grad_enabled(phase == 'train'):
+                    outputs = model(src, src_rev)
+                    loss = criterion(outputs.squeeze(2), trg)
+                    # Backpropagate Loss
+                    if phase == 'train':
+                        loss.backward()
+                        optimizer.step()
+                        # Print every setted frequency
+                        freq += 1
+                        if freq == args.print_freq:
+                            total_loss = loss.item()
+                            print("[loss:%5.2f][pp:%5.2f]" % (total_loss, math.exp(total_loss)))
+                            total_loss_list.append(total_loss)
+                            freq = 0
+                    if phase == 'valid':
+                        val_loss += loss.item()
+
+            # Finishing iteration
+            if phase == 'train':
+                pd.DataFrame(total_loss_list).to_csv('./save/{} epoch_loss.csv'.format(e), index=False)
+            if phase == 'valid': 
+                print('='*45)
+                val_loss /= len(dataloader_dict['valid'])
+                print("[Epoch:%d] val_loss:%5.3f | val_pp:%5.2fS | spend_time:%5.2fmin"
+                        % (e, val_loss, math.exp(val_loss), (time.time() - start_time_e) / 60))
+                if not best_val_loss or val_loss < best_val_loss:
+                    print("[!] saving model...")
+                    torch.save(seq2seq.state_dict(), './save/model_{}.pt'.format(e))
+                    best_val_loss = val_loss
+
+        # Gradient Scheduler Step
+        scheduler.step()
+
+    print('Done...!')
+
+if __name__ == '__main__':
+    # Args Parser
+    parser = argparse.ArgumentParser(description='Joseon NMT argparser')
+    parser.add_argument('--data_path', 
+        default='./preprocessing/pems_preprocessed.h5', 
+        type=str, help='path of data h5 file (train)')
+
+    parser.add_argument('--num_epoch', type=int, default=20, help='Epoch count; Default is 10')
+    parser.add_argument('--batch_size', type=int, default=16, help='Batch size; Default is 8')
+    parser.add_argument('--lr', type=float, default=1e-4, help='Learning rate; Default is 1e-4')
+    parser.add_argument('--lr_decay', type=float, default=0.5, help='Learning rate decay; Default is 0.5')
+    parser.add_argument('--lr_decay_step', type=int, default=5, help='Learning rate decay step; Default is 5')
+    parser.add_argument('--grad_clip', type=int, default=5, help='Set gradient clipping; Default is 5')
+    parser.add_argument('--w_decay', type=float, default=1e-6, help='Weight decay; Default is 1e-6')
+
+    parser.add_argument('--d_model', default=512, type=int, help='model dimension')
+    parser.add_argument('--d_embedding', default=256, type=int, help='embedding dimension')
+    parser.add_argument('--n_head', default=12, type=int, help='number of head in self-attention')
+    parser.add_argument('--dim_feedforward', default=2048, type=int, help='dimension of feedforward net')
+    parser.add_argument('--n_layers', type=int, default=12, help='Model layers; Default is 5')
+    parser.add_argument('--dropout', type=float, default=0.1, help='Dropout Ratio; Default is 0.1')
+
+    parser.add_argument('--print_freq', type=int, default=100, help='Print train loss frequency; Default is 100')
+    args = parser.parse_args()
+
+    main(args)
