@@ -26,9 +26,9 @@ def main(args):
 
     with h5py.File(args.data_path, 'r') as f:
         # List all groups
-        print("Keys: %s" % f.keys())
-        src = list(f.keys())[0]
-        trg = list(f.keys())[1]
+        print("Keys: %s" % f.keys()) # ['after', 'previous']
+        src = list(f.keys())[1] # Previous data
+        trg = list(f.keys())[0] # After data
 
         pems_src_data = list(f[src])
         pems_trg_data = list(f[trg])
@@ -52,8 +52,8 @@ def main(args):
     train_pems_trg = [pems_trg_data[i] for i in train_index]
     valid_pems_src = [pems_src_data[i] for i in valid_index]
     valid_pems_trg = [pems_trg_data[i] for i in valid_index]
-    train_pems_src = [pems_src_data[i] for i in test_index]
-    train_pems_trg = [pems_trg_data[i] for i in test_index]
+    test_pems_src = [pems_src_data[i] for i in test_index]
+    test_pems_trg = [pems_trg_data[i] for i in test_index]
 
     dataset_dict = {
         'train': CustomDataset(src=train_pems_src, trg=train_pems_trg),
@@ -74,7 +74,7 @@ def main(args):
     start_time = time.time()
 
     model = littleBERT(n_head=args.n_head, d_model=args.d_model, d_embedding=args.d_embedding, 
-                    n_layers=args.n_layers, dim_feedforward=args.dim_feedforward, dropout=args.dropout)
+                       n_layers=args.n_layers, dim_feedforward=args.dim_feedforward, dropout=args.dropout)
     optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.w_decay)
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=args.lr_decay_step, gamma=args.lr_decay)
     criterion = nn.MSELoss()
@@ -154,17 +154,17 @@ if __name__ == '__main__':
         type=str, help='path of data h5 file (train)')
 
     parser.add_argument('--num_epoch', type=int, default=20, help='Epoch count; Default is 10')
-    parser.add_argument('--batch_size', type=int, default=16, help='Batch size; Default is 8')
+    parser.add_argument('--batch_size', type=int, default=12, help='Batch size; Default is 8')
     parser.add_argument('--lr', type=float, default=1e-4, help='Learning rate; Default is 1e-4')
     parser.add_argument('--lr_decay', type=float, default=0.5, help='Learning rate decay; Default is 0.5')
     parser.add_argument('--lr_decay_step', type=int, default=5, help='Learning rate decay step; Default is 5')
     parser.add_argument('--grad_clip', type=int, default=5, help='Set gradient clipping; Default is 5')
     parser.add_argument('--w_decay', type=float, default=1e-6, help='Weight decay; Default is 1e-6')
 
-    parser.add_argument('--d_model', default=512, type=int, help='model dimension')
+    parser.add_argument('--d_model', default=768, type=int, help='model dimension')
     parser.add_argument('--d_embedding', default=256, type=int, help='embedding dimension')
     parser.add_argument('--n_head', default=12, type=int, help='number of head in self-attention')
-    parser.add_argument('--dim_feedforward', default=2048, type=int, help='dimension of feedforward net')
+    parser.add_argument('--dim_feedforward', default=768*4, type=int, help='dimension of feedforward net')
     parser.add_argument('--n_layers', type=int, default=12, help='Model layers; Default is 5')
     parser.add_argument('--dropout', type=float, default=0.1, help='Dropout Ratio; Default is 0.1')
 
