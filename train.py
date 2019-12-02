@@ -48,6 +48,10 @@ def main(args):
     valid_index = np.random.choice(list(set(range(data_len)) - set(train_index)), valid_len, replace = False)
     test_index = set(range(data_len)) - set(train_index) - set(valid_index)
 
+    print(f'train data: {len(train_index)}')
+    print(f'valid data: {len(valid_index)}')
+    print(f'test data: {len(test_index)}')
+
     train_pems_src = [pems_src_data[i] for i in train_index]
     train_pems_trg = [pems_trg_data[i] for i in train_index]
     valid_pems_src = [pems_src_data[i] for i in valid_index]
@@ -101,11 +105,11 @@ def main(args):
             if phase == 'valid':
                 model.eval()
                 val_loss = 0
-            for src, src_rev, trg in tqdm(train_dataloader):
-                # Input to Device(CUDA)
-                src = src.to(device)
-                src_rev = src_rev.to(device)
-                trg = trg.to(device)
+            for src, src_rev, trg in tqdm(dataloader_dict[phase]):
+                # Input to Device(CUDA) with float tensor
+                src = src.float().to(device)
+                src_rev = src_rev.float().to(device)
+                trg = trg.float().to(device)
 
                 # Optimizer Setting
                 optimizer.zero_grad()
@@ -148,7 +152,7 @@ def main(args):
 
 if __name__ == '__main__':
     # Args Parser
-    parser = argparse.ArgumentParser(description='Joseon NMT argparser')
+    parser = argparse.ArgumentParser(description='Traffic-BERT Argparser')
     parser.add_argument('--data_path', 
         default='./preprocessing/pems_preprocessed.h5', 
         type=str, help='path of data h5 file (train)')
@@ -161,11 +165,11 @@ if __name__ == '__main__':
     parser.add_argument('--grad_clip', type=int, default=5, help='Set gradient clipping; Default is 5')
     parser.add_argument('--w_decay', type=float, default=1e-6, help='Weight decay; Default is 1e-6')
 
-    parser.add_argument('--d_model', default=768, type=int, help='model dimension')
+    parser.add_argument('--d_model', default=512, type=int, help='model dimension')
     parser.add_argument('--d_embedding', default=256, type=int, help='embedding dimension')
-    parser.add_argument('--n_head', default=12, type=int, help='number of head in self-attention')
-    parser.add_argument('--dim_feedforward', default=768*4, type=int, help='dimension of feedforward net')
-    parser.add_argument('--n_layers', type=int, default=12, help='Model layers; Default is 5')
+    parser.add_argument('--n_head', default=8, type=int, help='number of head in self-attention')
+    parser.add_argument('--dim_feedforward', default=1536, type=int, help='dimension of feedforward net')
+    parser.add_argument('--n_layers', type=int, default=6, help='Model layers; Default is 5')
     parser.add_argument('--dropout', type=float, default=0.1, help='Dropout Ratio; Default is 0.1')
 
     parser.add_argument('--print_freq', type=int, default=100, help='Print train loss frequency; Default is 100')
