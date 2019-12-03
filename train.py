@@ -126,7 +126,7 @@ def main(args):
                         freq += 1
                         if freq == args.print_freq:
                             total_loss = loss.item()
-                            print("[loss:%5.2f][pp:%5.2f]" % (total_loss, math.exp(total_loss)))
+                            print("[loss:%5.2f]" % (total_loss))
                             total_loss_list.append(total_loss)
                             freq = 0
                     if phase == 'valid':
@@ -138,8 +138,8 @@ def main(args):
             if phase == 'valid': 
                 print('='*45)
                 val_loss /= len(dataloader_dict['valid'])
-                print("[Epoch:%d] val_loss:%5.3f | val_pp:%5.2fS | spend_time:%5.2fmin"
-                        % (e, val_loss, math.exp(val_loss), (time.time() - start_time_e) / 60))
+                print("[Epoch:%d] val_loss:%5.3f | spend_time:%5.2fmin"
+                        % (e, val_loss, (time.time() - start_time_e) / 60))
                 if not best_val_loss or val_loss < best_val_loss:
                     print("[!] saving model...")
                     torch.save(seq2seq.state_dict(), './save/model_{}.pt'.format(e))
