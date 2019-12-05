@@ -12,7 +12,7 @@ class CustomDataset(Dataset):
         
     def __getitem__(self, index):
         src = self.src[index]
-        src_rev = self.src[::-1][index]
+        src_rev = self.src[index][::-1]
         trg = self.trg[index]
         return src, src_rev, trg
     

@@ -95,6 +95,7 @@ def main(args):
 
     #
     for e in range(args.num_epoch):
+        start_time_e = time.time()
         for phase in ['train', 'valid']:
             # Preparing
             total_loss_list = list()
@@ -142,7 +143,7 @@ def main(args):
                         % (e, val_loss, (time.time() - start_time_e) / 60))
                 if not best_val_loss or val_loss < best_val_loss:
                     print("[!] saving model...")
-                    torch.save(seq2seq.state_dict(), './save/model_{}.pt'.format(e))
+                    torch.save(model.state_dict(), './save/model_{}.pt'.format(e))
                     best_val_loss = val_loss
 
         # Gradient Scheduler Step
@@ -154,7 +155,7 @@ if __name__ == '__main__':
     # Args Parser
     parser = argparse.ArgumentParser(description='Traffic-BERT Argparser')
     parser.add_argument('--data_path', 
-        default='./preprocessing/pems_preprocessed.h5', 
+        default='./preprocessing/pems_preprocessed_2.h5', 
         type=str, help='path of data h5 file (train)')
 
     parser.add_argument('--num_epoch', type=int, default=20, help='Epoch count; Default is 10')
