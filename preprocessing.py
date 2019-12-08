@@ -17,19 +17,21 @@ def main(args):
     after_pems = list()
     for col in tqdm(pems.columns):
         for i in range(pems.shape[0] - 24):
-            input_ = pems[col].iloc[i:i+12]
-            output_ = pems[col].iloc[i+12:i+24]
-            prev_pems.append(input_.tolist())
-            after_pems.append(output_.tolist())
+            input_ = pems[col].iloc[i:i+12].tolist()
+            output_ = pems[col].iloc[i+12:i+24].tolist()
+            if 0 not in input_ and 0 not in output_:
+                prev_pems.append(input_)
+                after_pems.append(output_)
 
     prev_metr = list()
     after_metr = list()
     for col in tqdm(metr.columns):
         for i in range(metr.shape[0] - 24):
-            input_ = metr[col].iloc[i:i+12]
-            output_ = metr[col].iloc[i+12:i+24]
-            prev_metr.append(input_.tolist())
-            after_metr.append(output_.tolist())
+            input_ = metr[col].iloc[i:i+12].tolist()
+            output_ = metr[col].iloc[i+12:i+24].tolist()
+            if 0 not in input_ and 0 not in output_:
+                prev_metr.append(input_)
+                after_metr.append(output_)
 
     print('Saving...')
     if not os.path.exists('./preprocessing'):

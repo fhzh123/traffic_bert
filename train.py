@@ -13,6 +13,8 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.utils as torch_utils
 
+from warmup_scheduler import GradualWarmupScheduler
+
 # Import Custom Module
 from bert import littleBERT
 from dataset import CustomDataset, Transpose_tensor, getDataLoader
@@ -41,8 +43,8 @@ def main(args):
     start_time = time.time()
 
     data_len = len(pems_src_data)
-    train_len = int(data_len * 0.6)
-    valid_len = int(data_len * 0.2)
+    train_len = int(data_len * 0.8)
+    valid_len = int(data_len * 0.1)
 
     train_index = np.random.choice(data_len, train_len, replace = False) 
     valid_index = np.random.choice(list(set(range(data_len)) - set(train_index)), valid_len, replace = False)
@@ -80,7 +82,9 @@ def main(args):
     model = littleBERT(n_head=args.n_head, d_model=args.d_model, d_embedding=args.d_embedding, 
                        n_layers=args.n_layers, dim_feedforward=args.dim_feedforward, dropout=args.dropout)
     optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.w_decay)
-    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=args.lr_decay_step, gamma=args.lr_decay)
+    #scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=args.lr_decay_step, gamma=args.lr_decay)
+    scheduler_cosine = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, args.num_epoch)
+    scheduler_warmup = GradualWarmupScheduler(optimizer, multiplier=4, total_epoch=2, after_scheduler=scheduler_cosine)
     criterion = nn.MSELoss()
     torch_utils.clip_grad_norm_(model.parameters(), args.grad_clip)
     model.to(device)
@@ -147,7 +151,7 @@ def main(args):
                     best_val_loss = val_loss
 
         # Gradient Scheduler Step
-        scheduler.step()
+        scheduler_warmup.step()
 
     print('Done...!')
 
@@ -155,25 +159,25 @@ if __name__ == '__main__':
     # Args Parser
     parser = argparse.ArgumentParser(description='Traffic-BERT Argparser')
     parser.add_argument('--data_path', 
-        default='./preprocessing/pems_preprocessed_2.h5', 
+        default='./preprocessing/pems_preprocessed.h5', 
         type=str, help='path of data h5 file (train)')
 
-    parser.add_argument('--num_epoch', type=int, default=20, help='Epoch count; Default is 10')
+    parser.add_argument('--num_epoch', type=int, default=10, help='Epoch count; Default is 10')
     parser.add_argument('--batch_size', type=int, default=12, help='Batch size; Default is 8')
-    parser.add_argument('--lr', type=float, default=1e-4, help='Learning rate; Default is 1e-4')
+    parser.add_argument('--lr', type=float, default=1e-5, help='Learning rate; Default is 1e-5')
     parser.add_argument('--lr_decay', type=float, default=0.5, help='Learning rate decay; Default is 0.5')
-    parser.add_argument('--lr_decay_step', type=int, default=5, help='Learning rate decay step; Default is 5')
+    parser.add_argument('--lr_decay_step', type=int, default=2, help='Learning rate decay step; Default is 5')
     parser.add_argument('--grad_clip', type=int, default=5, help='Set gradient clipping; Default is 5')
     parser.add_argument('--w_decay', type=float, default=1e-6, help='Weight decay; Default is 1e-6')
 
-    parser.add_argument('--d_model', default=512, type=int, help='model dimension')
+    parser.add_argument('--d_model', default=768, type=int, help='model dimension')
     parser.add_argument('--d_embedding', default=256, type=int, help='embedding dimension')
-    parser.add_argument('--n_head', default=8, type=int, help='number of head in self-attention')
-    parser.add_argument('--dim_feedforward', default=1536, type=int, help='dimension of feedforward net')
-    parser.add_argument('--n_layers', type=int, default=6, help='Model layers; Default is 5')
-    parser.add_argument('--dropout', type=float, default=0.1, help='Dropout Ratio; Default is 0.1')
+    parser.add_argument('--n_head', default=12, type=int, help='number of head in self-attention')
+    parser.add_argument('--dim_feedforward', default=768*4, type=int, help='dimension of feedforward net')
+    parser.add_argument('--n_layers', type=int, default=24, help='Model layers; Default is 5')
+    parser.add_argument('--dropout', type=float, default=0.2, help='Dropout Ratio; Default is 0.1')
 
-    parser.add_argument('--print_freq', type=int, default=100, help='Print train loss frequency; Default is 100')
+    parser.add_argument('--print_freq', type=int, default=500, help='Print train loss frequency; Default is 100')
     args = parser.parse_args()
 
     main(args)

@@ -30,7 +30,8 @@ class littleBERT(nn.Module):
 
         # Output Linear Part
         self.src_output_linear = nn.Linear(d_model, d_embedding)
-        self.src_output_bilinear = nn.Bilinear(d_embedding, d_embedding, d_embedding)
+        self.src_output_bilinear = nn.Linear((d_embedding + d_embedding), d_embedding)
+        #self.src_output_bilinear = nn.Bilinear(d_embedding, d_embedding, d_embedding)
         self.src_output_linear2 = nn.Linear(d_embedding, 1)
 
         # Transformer
@@ -51,7 +52,8 @@ class littleBERT(nn.Module):
         
         encoder_out1 = self.dropout(F.gelu(self.src_output_linear(encoder_out1)))
         encoder_out2 = self.dropout(F.gelu(self.src_output_linear(encoder_out2)))
-        encoder_out = self.src_output_bilinear(encoder_out1, encoder_out2)
+        encoder_out_cat = torch.cat((encoder_out1, encoder_out2), dim=2)
+        encoder_out = self.src_output_bilinear(encoder_out_cat)
         encoder_out = self.src_output_linear2(encoder_out).transpose(0, 1).contiguous()
 
         return encoder_out
