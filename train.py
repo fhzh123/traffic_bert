@@ -86,7 +86,6 @@ def main(args):
     scheduler_cosine = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, args.num_epoch)
     scheduler_warmup = GradualWarmupScheduler(optimizer, multiplier=4, total_epoch=2, after_scheduler=scheduler_cosine)
     criterion = nn.MSELoss()
-    torch_utils.clip_grad_norm_(model.parameters(), args.grad_clip)
     model.to(device)
 
     spend_time = round((time.time() - start_time) / 60, 4)
@@ -126,6 +125,7 @@ def main(args):
                     # Backpropagate Loss
                     if phase == 'train':
                         loss.backward()
+                        torch_utils.clip_grad_norm_(model.parameters(), args.grad_clip)
                         optimizer.step()
                         # Print every setted frequency
                         freq += 1
@@ -159,7 +159,7 @@ if __name__ == '__main__':
     # Args Parser
     parser = argparse.ArgumentParser(description='Traffic-BERT Argparser')
     parser.add_argument('--data_path', 
-        default='./preprocessing/pems_preprocessed.h5', 
+        default='./preprocessing/pems_preprocessed2.h5', 
         type=str, help='path of data h5 file (train)')
 
     parser.add_argument('--num_epoch', type=int, default=10, help='Epoch count; Default is 10')
@@ -174,7 +174,7 @@ if __name__ == '__main__':
     parser.add_argument('--d_embedding', default=256, type=int, help='embedding dimension')
     parser.add_argument('--n_head', default=12, type=int, help='number of head in self-attention')
     parser.add_argument('--dim_feedforward', default=768*4, type=int, help='dimension of feedforward net')
-    parser.add_argument('--n_layers', type=int, default=24, help='Model layers; Default is 5')
+    parser.add_argument('--n_layers', type=int, default=12, help='Model layers; Default is 5')
     parser.add_argument('--dropout', type=float, default=0.2, help='Dropout Ratio; Default is 0.1')
 
     parser.add_argument('--print_freq', type=int, default=500, help='Print train loss frequency; Default is 100')
