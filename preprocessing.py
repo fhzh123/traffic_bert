@@ -8,10 +8,8 @@ from tqdm import tqdm
 
 def main(args):
     pems = pd.read_hdf(args.pems_filename) # 03/12 AM02:00 is missing!!
-    metr = pd.read_hdf(args.metr_filename)
 
     print('pems shape: ' + str(pems.shape))
-    print('metr shape: ' + str(metr.shape))
 
     prev_pems = list()
     after_pems = list()
@@ -23,15 +21,28 @@ def main(args):
                 prev_pems.append(input_)
                 after_pems.append(output_)
 
-    prev_metr = list()
-    after_metr = list()
-    for col in tqdm(metr.columns):
-        for i in range(metr.shape[0] - 24):
-            input_ = metr[col].iloc[i:i+12].tolist()
-            output_ = metr[col].iloc[i+12:i+24].tolist()
-            if 0 not in input_ and 0 not in output_:
-                prev_metr.append(input_)
-                after_metr.append(output_)
+    # Train & Valid & Test Split
+    print('Data Splitting...')
+    start_time = time.time()
+
+    data_len = len(pems)
+    train_len = int(data_len * 0.8)
+    valid_len = int(data_len * 0.1)
+
+    train_index = np.random.choice(data_len, train_len, replace = False) 
+    valid_index = np.random.choice(list(set(range(data_len)) - set(train_index)), valid_len, replace = False)
+    test_index = set(range(data_len)) - set(train_index) - set(valid_index)
+
+    print(f'train data: {len(train_index)}')
+    print(f'valid data: {len(valid_index)}')
+    print(f'test data: {len(test_index)}')
+
+    train_pems_src = [prev_pems[i] for i in train_index]
+    train_pems_trg = [after_pems[i] for i in train_index]
+    valid_pems_src = [prev_pems[i] for i in valid_index]
+    valid_pems_trg = [after_pems[i] for i in valid_index]
+    test_pems_src = [prev_pems[i] for i in test_index]
+    test_pems_trg = [after_pems[i] for i in test_index]
 
     print('Saving...')
     if not os.path.exists('./preprocessing'):
@@ -40,12 +51,6 @@ def main(args):
     hf_pems.create_dataset('previous', data=prev_pems)
     hf_pems.create_dataset('after', data=after_pems)
     hf_pems.close()
-
-    hf_metr = h5py.File('./preprocessing/metr_preprocessed.h5', 'w')
-    hf_metr.create_dataset('previous', data=prev_metr)
-    hf_metr.create_dataset('after', data=after_metr)
-    hf_metr.close()
-    print('Done!')
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser(description='preprocessing traffic data')

@@ -25,6 +25,7 @@ class littleBERT(nn.Module):
         self.embedding_dropout = embedding_dropout
 
         # Source Embedding Part
+        self.prelu = nn.PReLU()
         self.embed1 = nn.Linear(1, d_embedding)
         self.embed2 = nn.Linear(d_embedding, d_model)
 

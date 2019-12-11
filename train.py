@@ -82,9 +82,9 @@ def main(args):
     model = littleBERT(n_head=args.n_head, d_model=args.d_model, d_embedding=args.d_embedding, 
                        n_layers=args.n_layers, dim_feedforward=args.dim_feedforward, dropout=args.dropout)
     optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.w_decay)
-    #scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=args.lr_decay_step, gamma=args.lr_decay)
-    scheduler_cosine = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, args.num_epoch)
-    scheduler_warmup = GradualWarmupScheduler(optimizer, multiplier=4, total_epoch=2, after_scheduler=scheduler_cosine)
+    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=args.lr_decay_step, gamma=args.lr_decay)
+    #scheduler_cosine = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, args.num_epoch)
+    #scheduler_warmup = GradualWarmupScheduler(optimizer, multiplier=4, total_epoch=2, after_scheduler=scheduler_cosine)
     criterion = nn.MSELoss()
     model.to(device)
 
@@ -151,7 +151,7 @@ def main(args):
                     best_val_loss = val_loss
 
         # Gradient Scheduler Step
-        scheduler_warmup.step()
+        scheduler.step()
 
     print('Done...!')
 
@@ -165,8 +165,8 @@ if __name__ == '__main__':
     parser.add_argument('--num_epoch', type=int, default=10, help='Epoch count; Default is 10')
     parser.add_argument('--batch_size', type=int, default=12, help='Batch size; Default is 8')
     parser.add_argument('--lr', type=float, default=1e-5, help='Learning rate; Default is 1e-5')
-    parser.add_argument('--lr_decay', type=float, default=0.5, help='Learning rate decay; Default is 0.5')
-    parser.add_argument('--lr_decay_step', type=int, default=2, help='Learning rate decay step; Default is 5')
+    parser.add_argument('--lr_decay', type=float, default=0.1, help='Learning rate decay; Default is 0.5')
+    parser.add_argument('--lr_decay_step', type=int, default=1, help='Learning rate decay step; Default is 5')
     parser.add_argument('--grad_clip', type=int, default=5, help='Set gradient clipping; Default is 5')
     parser.add_argument('--w_decay', type=float, default=1e-6, help='Weight decay; Default is 1e-6')
 

@@ -6,3 +6,5 @@ data/*
 preprocessing/*
 __pycache__/*
 save/*
+save2/*
+
