@@ -26,6 +26,7 @@ class littleBERT(nn.Module):
 
         # Source Embedding Part
         self.prelu = nn.PReLU()
+        self.lrelu = nn.LeakyReLU()
         self.embed1 = nn.Linear(1, d_embedding)
         self.embed2 = nn.Linear(d_embedding, d_model)
 
@@ -44,18 +45,19 @@ class littleBERT(nn.Module):
     def forward(self, src, src_rev):
 
         encoder_out1 = self.embed2(self.embed1(src.unsqueeze(2))).transpose(0, 1)
-        encoder_out2 = self.embed2(self.embed1(src_rev.unsqueeze(2))).transpose(0, 1)
+        #encoder_out2 = self.embed2(self.embed1(src_rev.unsqueeze(2))).transpose(0, 1)
 
         for i in range(len(self.encoders)):
             encoder_out1 = self.encoders[i](encoder_out1)
-        for i in range(len(self.encoders)):
-            encoder_out2 = self.encoders[i](encoder_out2)
+        # for i in range(len(self.encoders)):
+        #     encoder_out2 = self.encoders[i](encoder_out2)
         
         encoder_out1 = self.dropout(F.gelu(self.src_output_linear(encoder_out1)))
-        encoder_out2 = self.dropout(F.gelu(self.src_output_linear(encoder_out2)))
-        encoder_out_cat = torch.cat((encoder_out1, encoder_out2), dim=2)
-        encoder_out = self.src_output_bilinear(encoder_out_cat)
-        encoder_out = self.src_output_linear2(encoder_out).transpose(0, 1).contiguous()
+        # encoder_out2 = self.dropout(F.gelu(self.src_output_linear(encoder_out2)))
+        # encoder_out_cat = torch.cat((encoder_out1, encoder_out2), dim=2)
+        # encoder_out = self.src_output_bilinear(encoder_out_cat)
+        # encoder_out = self.src_output_linear2(encoder_out).transpose(0, 1).contiguous()
+        encoder_out = self.src_output_linear2(encoder_out1).transpose(0, 1).contiguous()
 
         return encoder_out
 

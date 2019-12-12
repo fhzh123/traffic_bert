@@ -26,50 +26,34 @@ def main(args):
     print('Data Loading...')
     start_time = time.time()
 
-    with h5py.File(args.data_path, 'r') as f:
+    with h5py.File(args.train_data_path, 'r') as f:
         # List all groups
-        print("Keys: %s" % f.keys()) # ['after', 'previous']
-        src = list(f.keys())[1] # Previous data
-        trg = list(f.keys())[0] # After data
+        src = list(f.keys())[0] # Previous data
+        trg = list(f.keys())[1] # After data
 
-        pems_src_data = list(f[src])
-        pems_trg_data = list(f[trg])
+        pems_src_train = list(f[src])
+        pems_trg_train = list(f[trg])
+
+    with h5py.File(args.valid_data_path, 'r') as f:
+        # List all groups
+        src = list(f.keys())[0] # Previous data
+        trg = list(f.keys())[1] # After data
+
+        pems_src_valid = list(f[src])
+        pems_trg_valid = list(f[trg])
         
     spend_time = round((time.time() - start_time) / 60, 4)
     print(f'Done...! / {spend_time}min spend...!')
 
-    # Train & Valid & Test Split
-    print('Data Splitting...')
-    start_time = time.time()
-
-    data_len = len(pems_src_data)
-    train_len = int(data_len * 0.8)
-    valid_len = int(data_len * 0.1)
-
-    train_index = np.random.choice(data_len, train_len, replace = False) 
-    valid_index = np.random.choice(list(set(range(data_len)) - set(train_index)), valid_len, replace = False)
-    test_index = set(range(data_len)) - set(train_index) - set(valid_index)
-
-    print(f'train data: {len(train_index)}')
-    print(f'valid data: {len(valid_index)}')
-    print(f'test data: {len(test_index)}')
-
-    train_pems_src = [pems_src_data[i] for i in train_index]
-    train_pems_trg = [pems_trg_data[i] for i in train_index]
-    valid_pems_src = [pems_src_data[i] for i in valid_index]
-    valid_pems_trg = [pems_trg_data[i] for i in valid_index]
-    test_pems_src = [pems_src_data[i] for i in test_index]
-    test_pems_trg = [pems_trg_data[i] for i in test_index]
+    print('DataLoader Setting...')
 
     dataset_dict = {
-        'train': CustomDataset(src=train_pems_src, trg=train_pems_trg),
-        'valid': CustomDataset(src=valid_pems_src, trg=valid_pems_trg),
-        'test': CustomDataset(src=test_pems_src, trg=test_pems_trg)
+        'train': CustomDataset(src=pems_src_train, trg=pems_trg_train),
+        'valid': CustomDataset(src=pems_src_valid, trg=pems_trg_valid)
     }
     dataloader_dict = {
         'train': getDataLoader(dataset_dict['train'], args.batch_size, True),
-        'valid': getDataLoader(dataset_dict['valid'], args.batch_size, True),
-        'test': getDataLoader(dataset_dict['test'], args.batch_size, True)
+        'valid': getDataLoader(dataset_dict['valid'], args.batch_size, True)
     }
 
     spend_time = round((time.time() - start_time) / 60, 4)
@@ -77,7 +61,6 @@ def main(args):
 
     # Train & Valid & Test Split
     print('Model Setting...')
-    start_time = time.time()
 
     model = littleBERT(n_head=args.n_head, d_model=args.d_model, d_embedding=args.d_embedding, 
                        n_layers=args.n_layers, dim_feedforward=args.dim_feedforward, dropout=args.dropout)
@@ -158,12 +141,15 @@ def main(args):
 if __name__ == '__main__':
     # Args Parser
     parser = argparse.ArgumentParser(description='Traffic-BERT Argparser')
-    parser.add_argument('--data_path', 
-        default='./preprocessing/pems_preprocessed2.h5', 
+    parser.add_argument('--train_data_path', 
+        default='./preprocessing/pems_preprocessed_train.h5', 
         type=str, help='path of data h5 file (train)')
+    parser.add_argument('--valid_data_path', 
+        default='./preprocessing/pems_preprocessed_valid.h5', 
+        type=str, help='path of data h5 file (valid)')
 
-    parser.add_argument('--num_epoch', type=int, default=10, help='Epoch count; Default is 10')
-    parser.add_argument('--batch_size', type=int, default=12, help='Batch size; Default is 8')
+    parser.add_argument('--num_epoch', type=int, default=5, help='Epoch count; Default is 10')
+    parser.add_argument('--batch_size', type=int, default=100, help='Batch size; Default is 100')
     parser.add_argument('--lr', type=float, default=1e-5, help='Learning rate; Default is 1e-5')
     parser.add_argument('--lr_decay', type=float, default=0.1, help='Learning rate decay; Default is 0.5')
     parser.add_argument('--lr_decay_step', type=int, default=1, help='Learning rate decay step; Default is 5')

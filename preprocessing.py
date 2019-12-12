@@ -1,13 +1,17 @@
 # Import Module
 import os
 import h5py
+import time
 import argparse
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
 def main(args):
+    start_time = time.time()
+
     pems = pd.read_hdf(args.pems_filename) # 03/12 AM02:00 is missing!!
+    pems = pems.iloc[:30000]
 
     print('pems shape: ' + str(pems.shape))
 
@@ -23,9 +27,8 @@ def main(args):
 
     # Train & Valid & Test Split
     print('Data Splitting...')
-    start_time = time.time()
-
-    data_len = len(pems)
+    
+    data_len = len(prev_pems)
     train_len = int(data_len * 0.8)
     valid_len = int(data_len * 0.1)
 
@@ -47,10 +50,23 @@ def main(args):
     print('Saving...')
     if not os.path.exists('./preprocessing'):
         os.mkdir('preprocessing')
-    hf_pems = h5py.File('./preprocessing/pems_preprocessed.h5', 'w')
-    hf_pems.create_dataset('previous', data=prev_pems)
-    hf_pems.create_dataset('after', data=after_pems)
-    hf_pems.close()
+    hf_pems_train = h5py.File('./preprocessing/pems_preprocessed_train.h5', 'w')
+    hf_pems_train.create_dataset('train_pems_src', data=train_pems_src)
+    hf_pems_train.create_dataset('train_pems_trg', data=train_pems_trg)
+    hf_pems_train.close()
+
+    hf_pems_valid = h5py.File('./preprocessing/pems_preprocessed_valid.h5', 'w')
+    hf_pems_valid.create_dataset('valid_pems_src', data=valid_pems_src)
+    hf_pems_valid.create_dataset('valid_pems_trg', data=valid_pems_trg)
+    hf_pems_valid.close()
+
+    hf_pems_test = h5py.File('./preprocessing/pems_preprocessed_test.h5', 'w')
+    hf_pems_test.create_dataset('test_pems_src', data=test_pems_src)
+    hf_pems_test.create_dataset('test_pems_trg', data=test_pems_trg)
+    hf_pems_test.close()
+
+    spend_time = round((time.time() - start_time) / 60, 4)
+    print(f'Done...! / {spend_time}min spend...!')
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser(description='preprocessing traffic data')
