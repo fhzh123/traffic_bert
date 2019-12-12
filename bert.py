@@ -15,14 +15,14 @@ from torch.nn.modules.activation import MultiheadAttention
 class littleBERT(nn.Module):
     def __init__(self, n_head, d_model=512, d_embedding=256, 
                  n_layers=1, dim_feedforward=1536,
-                 dropout=0.0, embedding_dropout=0.0):
+                 dropout=0.0, src_rev_usage=True):
         super(littleBERT, self).__init__()
 
         # Setting
         self.d_model = d_model
+        self.src_rev_usage = src_rev_usage
 
         self.dropout = nn.Dropout(dropout)
-        self.embedding_dropout = embedding_dropout
 
         # Source Embedding Part
         self.prelu = nn.PReLU()
@@ -32,8 +32,8 @@ class littleBERT(nn.Module):
 
         # Output Linear Part
         self.src_output_linear = nn.Linear(d_model, d_embedding)
-        self.src_output_bilinear = nn.Linear((d_embedding + d_embedding), d_embedding)
-        #self.src_output_bilinear = nn.Bilinear(d_embedding, d_embedding, d_embedding)
+        self.src_output_concatlinear = nn.Linear((d_embedding + d_embedding), d_embedding)
+        self.src_output_bilinear = nn.Bilinear(d_embedding, d_embedding, d_embedding)
         self.src_output_linear2 = nn.Linear(d_embedding, 1)
 
         # Transformer
@@ -45,19 +45,23 @@ class littleBERT(nn.Module):
     def forward(self, src, src_rev):
 
         encoder_out1 = self.embed2(self.embed1(src.unsqueeze(2))).transpose(0, 1)
-        #encoder_out2 = self.embed2(self.embed1(src_rev.unsqueeze(2))).transpose(0, 1)
+        if self.src_rev_usage:
+            encoder_out2 = self.embed2(self.embed1(src_rev.unsqueeze(2))).transpose(0, 1)
 
         for i in range(len(self.encoders)):
             encoder_out1 = self.encoders[i](encoder_out1)
-        # for i in range(len(self.encoders)):
-        #     encoder_out2 = self.encoders[i](encoder_out2)
+        if self.src_rev_usage:
+            for i in range(len(self.encoders)):
+                encoder_out2 = self.encoders[i](encoder_out2)
         
         encoder_out1 = self.dropout(F.gelu(self.src_output_linear(encoder_out1)))
-        # encoder_out2 = self.dropout(F.gelu(self.src_output_linear(encoder_out2)))
-        # encoder_out_cat = torch.cat((encoder_out1, encoder_out2), dim=2)
-        # encoder_out = self.src_output_bilinear(encoder_out_cat)
-        # encoder_out = self.src_output_linear2(encoder_out).transpose(0, 1).contiguous()
-        encoder_out = self.src_output_linear2(encoder_out1).transpose(0, 1).contiguous()
+        if self.src_rev_usage:
+            encoder_out2 = self.dropout(F.gelu(self.src_output_linear(encoder_out2)))
+            encoder_out_cat = torch.cat((encoder_out1, encoder_out2), dim=2)
+            encoder_out = self.src_output_concatlinear(encoder_out_cat)
+            encoder_out = self.src_output_linear2(encoder_out).transpose(0, 1).contiguous()
+        else:
+            encoder_out = self.src_output_linear2(encoder_out1).transpose(0, 1).contiguous()
 
         return encoder_out
 

@@ -63,7 +63,8 @@ def main(args):
     print('Model Setting...')
 
     model = littleBERT(n_head=args.n_head, d_model=args.d_model, d_embedding=args.d_embedding, 
-                       n_layers=args.n_layers, dim_feedforward=args.dim_feedforward, dropout=args.dropout)
+                       n_layers=args.n_layers, dim_feedforward=args.dim_feedforward, dropout=args.dropout,
+                       src_rev_usage=args.src_rev_usage)
     optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.w_decay)
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=args.lr_decay_step, gamma=args.lr_decay)
     #scheduler_cosine = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, args.num_epoch)
@@ -78,6 +79,14 @@ def main(args):
     best_val_loss = None
     if not os.path.exists('./save'):
         os.mkdir('./save')
+    hyper_parameter_setting = dict()
+    hyper_parameter_setting['n_layers'] = args.n_layers
+    hyper_parameter_setting['d_model'] = args.d_model
+    hyper_parameter_setting['n_head'] = args.n_head
+    hyper_parameter_setting['d_embedding'] = args.d_embedding
+    hyper_parameter_setting['dim_feedforward'] = args.dim_feedforward
+    hyper_parameter_setting['src_rev_usage'] = args.src_rev_usage
+    pd.DataFrame(hyper_parameter_setting).to_csv('./save/hyper_parameter.csv', index=False)
 
     #
     for e in range(args.num_epoch):
@@ -162,6 +171,7 @@ if __name__ == '__main__':
     parser.add_argument('--dim_feedforward', default=768*4, type=int, help='dimension of feedforward net')
     parser.add_argument('--n_layers', type=int, default=12, help='Model layers; Default is 5')
     parser.add_argument('--dropout', type=float, default=0.2, help='Dropout Ratio; Default is 0.1')
+    parser.add_argument('--src_rev_usage', type=bool, default=True, help='src_rev usage; Default is True')
 
     parser.add_argument('--print_freq', type=int, default=500, help='Print train loss frequency; Default is 100')
     args = parser.parse_args()
