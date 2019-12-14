@@ -65,23 +65,6 @@ class littleBERT(nn.Module):
 
         return encoder_out
 
-    def predict(self, src1, src2):
-
-        encoder_out1 = self.embed(src).transpose(0, 1)
-        encoder_out2 = self.embed(src_rev).transpose(0, 1)
-
-        for i in range(len(self.encoders)):
-            encoder_out1 = self.encoders[i](encoder_out1)
-        for i in range(len(self.encoders)):
-            encoder_out2 = self.encoders[i](encoder_out2)
-        
-        encoder_out1 = F.gelu(self.src_output_linear(encoder_out1))
-        encoder_out2 = F.gelu(self.src_output_linear(encoder_out2))
-        encoder_out = self.src_output_bilinear(encoder_out1, encoder_out2)
-        encoder_out = self.src_output_linear2(encoder_out).transpose(0, 1).contiguous()
-
-        return encoder_out
-
 class TransformerEncoderLayer(nn.Module):
     def __init__(self, d_model, self_attn, dim_feedforward=2048, dropout=0.1, 
             activation="relu"):

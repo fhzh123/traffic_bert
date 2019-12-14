@@ -2,6 +2,7 @@
 import os
 import h5py
 import time
+import datetime
 import argparse
 import numpy as np
 import pandas as pd
@@ -26,7 +27,14 @@ def main(args):
     print('Data Loading...')
     start_time = time.time()
 
-    with h5py.File(args.train_data_path, 'r') as f:
+    if args.data == 'pems':
+        train_data_path = './preprocessing/pems_preprocessed_train.h5'
+        valid_data_path = './preprocessing/pems_preprocessed_valid.h5'
+    if args.data == 'metr':
+        train_data_path = './preprocessing/metr_preprocessed_train.h5'
+        valid_data_path = './preprocessing/metr_preprocessed_valid.h5'
+
+    with h5py.File(train_data_path, 'r') as f:
         # List all groups
         src = list(f.keys())[0] # Previous data
         trg = list(f.keys())[1] # After data
@@ -34,7 +42,7 @@ def main(args):
         pems_src_train = list(f[src])
         pems_trg_train = list(f[trg])
 
-    with h5py.File(args.valid_data_path, 'r') as f:
+    with h5py.File(valid_data_path, 'r') as f:
         # List all groups
         src = list(f.keys())[0] # Previous data
         trg = list(f.keys())[1] # After data
@@ -77,18 +85,24 @@ def main(args):
 
     # Preparing
     best_val_loss = None
-    if not os.path.exists('./save'):
-        os.mkdir('./save')
+    now = datetime.datetime.now()
+    nowDatetime = now.strftime('%Y-%m-%d %H:%M:%S')
+    if not os.path.exists(f'./save_{nowDatetime}'):
+        os.mkdir(f'./save_{nowDatetime}')
     hyper_parameter_setting = dict()
+    hyper_parameter_setting['data'] = args.data
     hyper_parameter_setting['n_layers'] = args.n_layers
     hyper_parameter_setting['d_model'] = args.d_model
     hyper_parameter_setting['n_head'] = args.n_head
     hyper_parameter_setting['d_embedding'] = args.d_embedding
     hyper_parameter_setting['dim_feedforward'] = args.dim_feedforward
     hyper_parameter_setting['src_rev_usage'] = args.src_rev_usage
-    pd.DataFrame(hyper_parameter_setting).to_csv('./save/hyper_parameter.csv', index=False)
+    with open(f'./save_{nowDatetime}/hyper_parameter_setting.txt', 'w') as f:
+        for key in hyper_parameter_setting.keys():
+            f.write(str(key) + ': ' + str(hyper_parameter_setting[key]))
+            f.write('\n')
 
-    #
+    # Model Train
     for e in range(args.num_epoch):
         start_time_e = time.time()
         for phase in ['train', 'valid']:
@@ -130,8 +144,8 @@ def main(args):
                         val_loss += loss.item()
 
             # Finishing iteration
-            if phase == 'train':
-                pd.DataFrame(total_loss_list).to_csv('./save/{} epoch_loss.csv'.format(e), index=False)
+            # if phase == 'train':
+            #     pd.DataFrame(total_loss_list).to_csv('./save_{}/{} epoch_loss.csv'.format(nowDatetime, e), index=False)
             if phase == 'valid': 
                 print('='*45)
                 val_loss /= len(dataloader_dict['valid'])
@@ -139,7 +153,8 @@ def main(args):
                         % (e, val_loss, (time.time() - start_time_e) / 60))
                 if not best_val_loss or val_loss < best_val_loss:
                     print("[!] saving model...")
-                    torch.save(model.state_dict(), './save/model_{}.pt'.format(e))
+                    val_loss_save = round(val_loss, 2)
+                    torch.save(model.state_dict(), f'./save_{nowDatetime}/model_{e}_{val_loss_save}.pt')
                     best_val_loss = val_loss
 
         # Gradient Scheduler Step
@@ -150,12 +165,7 @@ def main(args):
 if __name__ == '__main__':
     # Args Parser
     parser = argparse.ArgumentParser(description='Traffic-BERT Argparser')
-    parser.add_argument('--train_data_path', 
-        default='./preprocessing/pems_preprocessed_train.h5', 
-        type=str, help='path of data h5 file (train)')
-    parser.add_argument('--valid_data_path', 
-        default='./preprocessing/pems_preprocessed_valid.h5', 
-        type=str, help='path of data h5 file (valid)')
+    parser.add_argument('--data', type=str, default='pems', help='Set dataset; Default is pems')
 
     parser.add_argument('--num_epoch', type=int, default=5, help='Epoch count; Default is 10')
     parser.add_argument('--batch_size', type=int, default=100, help='Batch size; Default is 100')
