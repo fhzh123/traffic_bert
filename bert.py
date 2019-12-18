@@ -14,13 +14,14 @@ from torch.nn.modules.activation import MultiheadAttention
 
 class littleBERT(nn.Module):
     def __init__(self, n_head, d_model=512, d_embedding=256, 
-                 n_layers=1, dim_feedforward=1536,
-                 dropout=0.0, src_rev_usage=True):
+                 n_layers=1, dim_feedforward=1536, dropout=0.0, src_rev_usage=True, repeat_input=False):
         super(littleBERT, self).__init__()
 
         # Setting
         self.d_model = d_model
+        self.d_embedding = d_embedding
         self.src_rev_usage = src_rev_usage
+        self.repeat_input = repeat_input
 
         self.dropout = nn.Dropout(dropout)
 
@@ -44,9 +45,16 @@ class littleBERT(nn.Module):
 
     def forward(self, src, src_rev):
 
-        encoder_out1 = self.embed2(self.embed1(src.unsqueeze(2))).transpose(0, 1)
+        if self.repeat_input:
+            encoder_out1 = self.embed2(src.unsqueeze(2).repeat(1, 1, self.d_embedding)).transpose(0, 1)
+        else:
+            encoder_out1 = self.embed2(self.embed1(src.unsqueeze(2))).transpose(0, 1)
+
         if self.src_rev_usage:
-            encoder_out2 = self.embed2(self.embed1(src_rev.unsqueeze(2))).transpose(0, 1)
+            if self.repeat_input:
+                encoder_out1 = self.embed2(src_rev.unsqueeze(2).repeat(1, 1, self.d_embedding)).transpose(0, 1)
+            else:
+                encoder_out2 = self.embed2(self.embed1(src_rev.unsqueeze(2))).transpose(0, 1)
 
         for i in range(len(self.encoders)):
             encoder_out1 = self.encoders[i](encoder_out1)

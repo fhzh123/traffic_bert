@@ -72,7 +72,7 @@ def main(args):
 
     model = littleBERT(n_head=args.n_head, d_model=args.d_model, d_embedding=args.d_embedding, 
                        n_layers=args.n_layers, dim_feedforward=args.dim_feedforward, dropout=args.dropout,
-                       src_rev_usage=args.src_rev_usage)
+                       src_rev_usage=args.src_rev_usage, repeat_input=args.repeat_input)
     optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.w_decay)
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=args.lr_decay_step, gamma=args.lr_decay)
     #scheduler_cosine = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, args.num_epoch)
@@ -87,8 +87,8 @@ def main(args):
     best_val_loss = None
     now = datetime.datetime.now()
     nowDatetime = now.strftime('%Y-%m-%d %H:%M:%S')
-    if not os.path.exists(f'./save_{nowDatetime}'):
-        os.mkdir(f'./save_{nowDatetime}')
+    if not os.path.exists(f'./save/save_{nowDatetime}'):
+        os.mkdir(f'./save/save_{nowDatetime}')
     hyper_parameter_setting = dict()
     hyper_parameter_setting['data'] = args.data
     hyper_parameter_setting['n_layers'] = args.n_layers
@@ -97,7 +97,8 @@ def main(args):
     hyper_parameter_setting['d_embedding'] = args.d_embedding
     hyper_parameter_setting['dim_feedforward'] = args.dim_feedforward
     hyper_parameter_setting['src_rev_usage'] = args.src_rev_usage
-    with open(f'./save_{nowDatetime}/hyper_parameter_setting.txt', 'w') as f:
+    hyper_parameter_setting['repeat_input'] = args.repeat_input
+    with open(f'./save/save_{nowDatetime}/hyper_parameter_setting.txt', 'w') as f:
         for key in hyper_parameter_setting.keys():
             f.write(str(key) + ': ' + str(hyper_parameter_setting[key]))
             f.write('\n')
@@ -144,8 +145,8 @@ def main(args):
                         val_loss += loss.item()
 
             # Finishing iteration
-            # if phase == 'train':
-            #     pd.DataFrame(total_loss_list).to_csv('./save_{}/{} epoch_loss.csv'.format(nowDatetime, e), index=False)
+            if phase == 'train':
+                pd.DataFrame(total_loss_list).to_csv('./save/save_{}/{} epoch_loss.csv'.format(nowDatetime, e), index=False)
             if phase == 'valid': 
                 print('='*45)
                 val_loss /= len(dataloader_dict['valid'])
@@ -154,7 +155,7 @@ def main(args):
                 if not best_val_loss or val_loss < best_val_loss:
                     print("[!] saving model...")
                     val_loss_save = round(val_loss, 2)
-                    torch.save(model.state_dict(), f'./save_{nowDatetime}/model_{e}_{val_loss_save}.pt')
+                    torch.save(model.state_dict(), f'./save/save_{nowDatetime}/model_{e}_{val_loss_save}.pt')
                     best_val_loss = val_loss
 
         # Gradient Scheduler Step
@@ -182,6 +183,7 @@ if __name__ == '__main__':
     parser.add_argument('--n_layers', type=int, default=12, help='Model layers; Default is 5')
     parser.add_argument('--dropout', type=float, default=0.2, help='Dropout Ratio; Default is 0.1')
     parser.add_argument('--src_rev_usage', type=bool, default=True, help='src_rev usage; Default is True')
+    parser.add_argument('--repeat_input', type=bool, default=False, help='repeat input vector; Default is False')
 
     parser.add_argument('--print_freq', type=int, default=500, help='Print train loss frequency; Default is 100')
     args = parser.parse_args()
