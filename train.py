@@ -136,11 +136,11 @@ def main(args):
                         optimizer.step()
                         # Print every setted frequency
                         freq += 1
-                        if freq == args.print_freq:
-                            total_loss = loss.item()
-                            print("[loss:%5.2f]" % (total_loss))
-                            total_loss_list.append(total_loss)
-                            freq = 0
+                        # if freq == args.print_freq:
+                        #     total_loss = loss.item()
+                        #     print("[loss:%5.2f]" % (total_loss))
+                        #     total_loss_list.append(total_loss)
+                        #     freq = 0
                     if phase == 'valid':
                         val_loss += loss.item()
 
@@ -168,11 +168,11 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Traffic-BERT Argparser')
     parser.add_argument('--data', type=str, default='pems', help='Set dataset; Default is pems')
 
-    parser.add_argument('--num_epoch', type=int, default=5, help='Epoch count; Default is 10')
+    parser.add_argument('--num_epoch', type=int, default=6, help='Epoch count; Default is 10')
     parser.add_argument('--batch_size', type=int, default=100, help='Batch size; Default is 100')
     parser.add_argument('--lr', type=float, default=1e-5, help='Learning rate; Default is 1e-5')
     parser.add_argument('--lr_decay', type=float, default=0.1, help='Learning rate decay; Default is 0.5')
-    parser.add_argument('--lr_decay_step', type=int, default=1, help='Learning rate decay step; Default is 5')
+    parser.add_argument('--lr_decay_step', type=int, default=2, help='Learning rate decay step; Default is 5')
     parser.add_argument('--grad_clip', type=int, default=5, help='Set gradient clipping; Default is 5')
     parser.add_argument('--w_decay', type=float, default=1e-6, help='Weight decay; Default is 1e-6')
 
@@ -185,7 +185,7 @@ if __name__ == '__main__':
     parser.add_argument('--src_rev_usage', type=bool, default=True, help='src_rev usage; Default is True')
     parser.add_argument('--repeat_input', type=bool, default=False, help='repeat input vector; Default is False')
 
-    parser.add_argument('--print_freq', type=int, default=500, help='Print train loss frequency; Default is 100')
+    parser.add_argument('--print_freq', type=int, default=999999, help='Print train loss frequency; Default is 100')
     args = parser.parse_args()
 
     main(args)

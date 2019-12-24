@@ -52,7 +52,7 @@ class littleBERT(nn.Module):
 
         if self.src_rev_usage:
             if self.repeat_input:
-                encoder_out1 = self.embed2(src_rev.unsqueeze(2).repeat(1, 1, self.d_embedding)).transpose(0, 1)
+                encoder_out2 = self.embed2(src_rev.unsqueeze(2).repeat(1, 1, self.d_embedding)).transpose(0, 1)
             else:
                 encoder_out2 = self.embed2(self.embed1(src_rev.unsqueeze(2))).transpose(0, 1)
 
