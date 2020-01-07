@@ -26,16 +26,9 @@ def main(args):
     # Load Data
     print('Data Loading...')
     print(args.src_rev_usage)
-    src_rev_usage = False
-    print(src_rev_usage)
+    #src_rev_usage = False
+    #print(src_rev_usage)
     start_time = time.time()
-
-    print('---')
-    print(args.n_layers)
-    print(args.repeat_input)
-    print(args.d_embedding)
-    print(args.d_model)
-    print(args.dim_feedforward)
 
     # if args.data == 'pems':
     #     train_data_path = './preprocessing/pems_preprocessed_train.h5'
@@ -43,39 +36,41 @@ def main(args):
     # if args.data == 'metr':
     #     train_data_path = './preprocessing/metr_preprocessed_train.h5'
     #     valid_data_path = './preprocessing/metr_preprocessed_valid.h5'
+    train_data_path = './preprocessing/total/preprocessed_train.h5'
+    valid_data_path = './preprocessing/total/preprocessed_valid.h5'
 
-    # with h5py.File(train_data_path, 'r') as f:
-    #     # List all groups
-    #     src = list(f.keys())[0] # Previous data
-    #     trg = list(f.keys())[1] # After data
+    with h5py.File(train_data_path, 'r') as f:
+        # List all groups
+        src = list(f.keys())[0] # Previous data
+        trg = list(f.keys())[1] # After data
 
-    #     pems_src_train = list(f[src])
-    #     pems_trg_train = list(f[trg])
+        pems_src_train = list(f[src])
+        pems_trg_train = list(f[trg])
 
-    # with h5py.File(valid_data_path, 'r') as f:
-    #     # List all groups
-    #     src = list(f.keys())[0] # Previous data
-    #     trg = list(f.keys())[1] # After data
+    with h5py.File(valid_data_path, 'r') as f:
+        # List all groups
+        src = list(f.keys())[0] # Previous data
+        trg = list(f.keys())[1] # After data
 
-    #     pems_src_valid = list(f[src])
-    #     pems_trg_valid = list(f[trg])
+        pems_src_valid = list(f[src])
+        pems_trg_valid = list(f[trg])
         
-    # spend_time = round((time.time() - start_time) / 60, 4)
-    # print(f'Done...! / {spend_time}min spend...!')
+    spend_time = round((time.time() - start_time) / 60, 4)
+    print(f'Done...! / {spend_time}min spend...!')
 
-    # print('DataLoader Setting...')
+    print('DataLoader Setting...')
 
-    # dataset_dict = {
-    #     'train': CustomDataset(src=pems_src_train, trg=pems_trg_train),
-    #     'valid': CustomDataset(src=pems_src_valid, trg=pems_trg_valid)
-    # }
-    # dataloader_dict = {
-    #     'train': getDataLoader(dataset_dict['train'], args.batch_size, True),
-    #     'valid': getDataLoader(dataset_dict['valid'], args.batch_size, True)
-    # }
+    dataset_dict = {
+        'train': CustomDataset(src=pems_src_train, trg=pems_trg_train),
+        'valid': CustomDataset(src=pems_src_valid, trg=pems_trg_valid)
+    }
+    dataloader_dict = {
+        'train': getDataLoader(dataset_dict['train'], args.batch_size, True),
+        'valid': getDataLoader(dataset_dict['valid'], args.batch_size, True)
+    }
 
-    # spend_time = round((time.time() - start_time) / 60, 4)
-    # print(f'Done...! / {spend_time}min spend...!')
+    spend_time = round((time.time() - start_time) / 60, 4)
+    print(f'Done...! / {spend_time}min spend...!')
 
     # Train & Valid & Test Split
     print('Model Setting...')
@@ -101,7 +96,7 @@ def main(args):
     if not os.path.exists(f'./save/save_{nowDatetime}'):
         os.mkdir(f'./save/save_{nowDatetime}')
     hyper_parameter_setting = dict()
-    hyper_parameter_setting['data'] = args.data
+    hyper_parameter_setting['data'] = 'total'
     hyper_parameter_setting['n_layers'] = args.n_layers
     hyper_parameter_setting['d_model'] = args.d_model
     hyper_parameter_setting['n_head'] = args.n_head
@@ -127,7 +122,11 @@ def main(args):
             if phase == 'valid':
                 model.eval()
                 val_loss = 0
-            for src, src_rev, trg in tqdm(dataloader_dict[phase]):
+            for stop_ix, (src, src_rev, trg) in enumerate(tqdm(dataloader_dict[phase])):
+
+                if phase == 'train' and stop_ix == 30000:
+                    break
+
                 # Input to Device(CUDA) with float tensor
                 src = src.float().to(device)
                 src_rev = src_rev.float().to(device)
