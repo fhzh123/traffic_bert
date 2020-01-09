@@ -77,7 +77,7 @@ def main(args):
 
     model = littleBERT(n_head=args.n_head, d_model=args.d_model, d_embedding=args.d_embedding, 
                        n_layers=args.n_layers, dim_feedforward=args.dim_feedforward, dropout=args.dropout,
-                       src_rev_usage=src_rev_usage, repeat_input=args.repeat_input)
+                       src_rev_usage=args.src_rev_usage, repeat_input=args.repeat_input)
                     #    src_rev_usage=args.src_rev_usage, repeat_input=args.repeat_input)
     optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.w_decay)
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=args.lr_decay_step, gamma=args.lr_decay)
@@ -102,7 +102,7 @@ def main(args):
     hyper_parameter_setting['n_head'] = args.n_head
     hyper_parameter_setting['d_embedding'] = args.d_embedding
     hyper_parameter_setting['dim_feedforward'] = args.dim_feedforward
-    hyper_parameter_setting['src_rev_usage'] = src_rev_usage
+    hyper_parameter_setting['src_rev_usage'] = args.src_rev_usage
     hyper_parameter_setting['repeat_input'] = args.repeat_input
     with open(f'./save/save_{nowDatetime}/hyper_parameter_setting.txt', 'w') as f:
         for key in hyper_parameter_setting.keys():
@@ -191,7 +191,7 @@ if __name__ == '__main__':
     parser.add_argument('--n_head', default=12, type=int, help='number of head in self-attention')
     parser.add_argument('--dim_feedforward', default=768*4, type=int, help='dimension of feedforward net')
     parser.add_argument('--n_layers', type=int, default=12, help='Model layers; Default is 5')
-    parser.add_argument('--dropout', type=float, default=0.2, help='Dropout Ratio; Default is 0.1')
+    parser.add_argument('--dropout', type=float, default=0.1, help='Dropout Ratio; Default is 0.1')
     parser.add_argument('--src_rev_usage', type=bool, default=False, help='src_rev usage; Default is False')
     parser.add_argument('--repeat_input', type=bool, default=False, help='repeat input vector; Default is False')
 
