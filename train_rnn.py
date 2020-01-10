@@ -14,10 +14,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.utils as torch_utils
 
-from warmup_scheduler import GradualWarmupScheduler
-
-# Import Custom Module
-from bert import littleBERT
+from rnn import Encoder, Decoder, Seq2Seq
 from dataset import CustomDataset, Transpose_tensor, getDataLoader
 
 def main(args):
@@ -25,17 +22,8 @@ def main(args):
 
     # Load Data
     print('Data Loading...')
-    print(args.src_rev_usage)
-    src_rev_usage = False
-    print(src_rev_usage)
     start_time = time.time()
 
-    # if args.data == 'pems':
-    #     train_data_path = './preprocessing/pems_preprocessed_train.h5'
-    #     valid_data_path = './preprocessing/pems_preprocessed_valid.h5'
-    # if args.data == 'metr':
-    #     train_data_path = './preprocessing/metr_preprocessed_train.h5'
-    #     valid_data_path = './preprocessing/metr_preprocessed_valid.h5'
     train_data_path = './preprocessing/total/preprocessed_train.h5'
     valid_data_path = './preprocessing/total/preprocessed_valid.h5'
 
@@ -74,37 +62,27 @@ def main(args):
 
     # Train & Valid & Test Split
     print('Model Setting...')
-
-    model = littleBERT(n_head=args.n_head, d_model=args.d_model, d_embedding=args.d_embedding, 
-                       n_layers=args.n_layers, dim_feedforward=args.dim_feedforward, dropout=args.dropout,
-                       src_rev_usage=src_rev_usage, repeat_input=args.repeat_input)
-                    #    src_rev_usage=args.src_rev_usage, repeat_input=args.repeat_input)
-    optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.w_decay)
-    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=args.lr_decay_step, gamma=args.lr_decay)
-    #scheduler_cosine = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, args.num_epoch)
-    #scheduler_warmup = GradualWarmupScheduler(optimizer, multiplier=4, total_epoch=2, after_scheduler=scheduler_cosine)
+    encoder = Encoder(args.d_embedding, args.d_hidden, n_layers=args.n_layers, dropout=args.dropout)
+    decoder = Decoder(args.d_embedding, args.d_hidden, n_layers=args.n_layers, dropout=args.dropout)
+    seq2seq = Seq2Seq(encoder, decoder)
+    optimizer = optim.Adam(filter(lambda p: p.requires_grad, seq2seq.parameters()), lr=1e-5, weight_decay=1e-6)
+    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=3, gamma=0.5)
     criterion = nn.MSELoss()
-    model.to(device)
-
-    spend_time = round((time.time() - start_time) / 60, 4)
-    print(f'Done...! / {spend_time}min spend...!')
+    seq2seq.to(device)
+    print(seq2seq)
 
     # Preparing
     best_val_loss = None
     now = datetime.datetime.now()
     nowDatetime = now.strftime('%Y-%m-%d %H:%M:%S')
-    if not os.path.exists(f'./save/save_{nowDatetime}'):
-        os.mkdir(f'./save/save_{nowDatetime}')
+    if not os.path.exists(f'./save/save_rnn_{nowDatetime}'):
+        os.mkdir(f'./save/save_rnn_{nowDatetime}')
     hyper_parameter_setting = dict()
-    hyper_parameter_setting['data'] = args.data
+    hyper_parameter_setting['data'] = 'total'
     hyper_parameter_setting['n_layers'] = args.n_layers
-    hyper_parameter_setting['d_model'] = args.d_model
-    hyper_parameter_setting['n_head'] = args.n_head
+    hyper_parameter_setting['d_hidden'] = args.d_hidden
     hyper_parameter_setting['d_embedding'] = args.d_embedding
-    hyper_parameter_setting['dim_feedforward'] = args.dim_feedforward
-    hyper_parameter_setting['src_rev_usage'] = src_rev_usage
-    hyper_parameter_setting['repeat_input'] = args.repeat_input
-    with open(f'./save/save_{nowDatetime}/hyper_parameter_setting.txt', 'w') as f:
+    with open(f'./save/save_rnn_{nowDatetime}/hyper_parameter_setting.txt', 'w') as f:
         for key in hyper_parameter_setting.keys():
             f.write(str(key) + ': ' + str(hyper_parameter_setting[key]))
             f.write('\n')
@@ -118,14 +96,17 @@ def main(args):
             freq = args.print_freq - 1
             # Model Setting
             if phase == 'train':
-                model.train()
+                seq2seq.train()
             if phase == 'valid':
-                model.eval()
+                seq2seq.eval()
                 val_loss = 0
-            for src, src_rev, trg in tqdm(dataloader_dict[phase]):
+            for stop_ix, (src, src_rev, trg) in enumerate(tqdm(dataloader_dict[phase])):
+
+                if phase == 'train' and stop_ix == 30000:
+                    break
+                
                 # Input to Device(CUDA) with float tensor
                 src = src.float().to(device)
-                src_rev = src_rev.float().to(device)
                 trg = trg.float().to(device)
 
                 # Optimizer Setting
@@ -133,26 +114,26 @@ def main(args):
 
                 # Model Training & Validation
                 with torch.set_grad_enabled(phase == 'train'):
-                    outputs = model(src, src_rev)
+                    outputs = seq2seq(src, trg)
                     loss = criterion(outputs.squeeze(2), trg)
                     # Backpropagate Loss
                     if phase == 'train':
                         loss.backward()
-                        torch_utils.clip_grad_norm_(model.parameters(), args.grad_clip)
+                        torch_utils.clip_grad_norm_(seq2seq.parameters(), args.grad_clip)
                         optimizer.step()
                         # Print every setted frequency
                         freq += 1
-                        # if freq == args.print_freq:
-                        #     total_loss = loss.item()
-                        #     print("[loss:%5.2f]" % (total_loss))
-                        #     total_loss_list.append(total_loss)
-                        #     freq = 0
+                        if freq == args.print_freq:
+                            total_loss = loss.item()
+                            print("[loss:%5.2f]" % (total_loss))
+                            total_loss_list.append(total_loss)
+                            freq = 0
                     if phase == 'valid':
                         val_loss += loss.item()
 
             # Finishing iteration
             if phase == 'train':
-                pd.DataFrame(total_loss_list).to_csv('./save/save_{}/{} epoch_loss.csv'.format(nowDatetime, e), index=False)
+                pd.DataFrame(total_loss_list).to_csv('./save/save_rnn_{}/{} epoch_loss.csv'.format(nowDatetime, e), index=False)
             if phase == 'valid': 
                 print('='*45)
                 val_loss /= len(dataloader_dict['valid'])
@@ -161,7 +142,7 @@ def main(args):
                 if not best_val_loss or val_loss < best_val_loss:
                     print("[!] saving model...")
                     val_loss_save = round(val_loss, 2)
-                    torch.save(model.state_dict(), f'./save/save_{nowDatetime}/model_{e}_{val_loss_save}.pt')
+                    torch.save(model.state_dict(), f'./save/save_rnn_{nowDatetime}/model_{e}_{val_loss_save}.pt')
                     best_val_loss = val_loss
 
         # Gradient Scheduler Step
@@ -182,16 +163,12 @@ if __name__ == '__main__':
     parser.add_argument('--grad_clip', type=int, default=5, help='Set gradient clipping; Default is 5')
     parser.add_argument('--w_decay', type=float, default=1e-6, help='Weight decay; Default is 1e-6')
 
-    parser.add_argument('--d_model', default=768, type=int, help='model dimension')
+    parser.add_argument('--d_hidden', default=256, type=int, help='model dimension')
     parser.add_argument('--d_embedding', default=256, type=int, help='embedding dimension')
-    parser.add_argument('--n_head', default=12, type=int, help='number of head in self-attention')
-    parser.add_argument('--dim_feedforward', default=768*4, type=int, help='dimension of feedforward net')
-    parser.add_argument('--n_layers', type=int, default=12, help='Model layers; Default is 5')
+    parser.add_argument('--n_layers', type=int, default=6, help='Model layers; Default is 5')
     parser.add_argument('--dropout', type=float, default=0.2, help='Dropout Ratio; Default is 0.1')
-    parser.add_argument('--src_rev_usage', type=bool, default=False, help='src_rev usage; Default is False')
-    parser.add_argument('--repeat_input', type=bool, default=False, help='repeat input vector; Default is False')
 
-    parser.add_argument('--print_freq', type=int, default=999999, help='Print train loss frequency; Default is 100')
+    parser.add_argument('--print_freq', type=int, default=1000, help='Print train loss frequency; Default is 1000')
     args = parser.parse_args()
 
     main(args)
