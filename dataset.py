@@ -1,3 +1,7 @@
+# Import Module
+import h5py
+import numpy as np
+
 # Import PyTorch
 import torch
 
@@ -5,15 +9,14 @@ from torch.utils.data import DataLoader
 from torch.utils.data.dataset import Dataset
 
 class CustomDataset(Dataset):
-    def __init__(self, src, trg):
-        self.src = src
-        self.trg = trg
-        self.num_data = len(self.src)
+    def __init__(self, file_path):
+        self.file = h5py.File(file_path, 'r')
+        self.num_data = len(self.file[list(self.file.keys())[0]])
         
     def __getitem__(self, index):
-        src = self.src[index]
-        src_rev = list(reversed(self.src[index]))
-        trg = self.trg[index]
+        src = self.file[list(self.file.keys())[0]][index]
+        src_rev = np.flip(src)
+        trg = self.file[list(self.file.keys())[1]][index]
         return src, src_rev, trg
     
     def __len__(self):
@@ -80,6 +83,6 @@ class PadCollate:
     def __call__(self, batch):
         return self.pad_collate(batch)
 
-def getDataLoader(dataset, batch_size, shuffle):
+def getDataLoader(dataset, batch_size, shuffle, num_workers):
     return DataLoader(dataset, drop_last=True, batch_size=batch_size, collate_fn=Transpose_tensor(),
-                      shuffle=shuffle, pin_memory=True) 
+                      shuffle=shuffle, pin_memory=True, num_workers=num_workers) 
