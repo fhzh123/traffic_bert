@@ -158,7 +158,7 @@ if __name__ == '__main__':
     # Args Parser
     parser = argparse.ArgumentParser(description='Traffic-BERT Argparser')
     parser.add_argument('--data', type=str, default='pems', help='Set dataset; Default is pems')
-    parser.add_argument('--num_workers', type=int, default=8, help='')
+    parser.add_argument('--num_workers', type=int, default=0, help='')
 
     parser.add_argument('--num_epoch', type=int, default=6, help='Epoch count; Default is 10')
     parser.add_argument('--batch_size', type=int, default=100, help='Batch size; Default is 100')
