@@ -15,6 +15,8 @@ import torch.nn.utils as torch_utils
 
 # Implementation from article : SAE network : a deep learning method for traffic flow prediction
 # (https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=8572451)
+# Reference code : https://github.com/xiaochus/TrafficFlowPrediction, https://github.com/ShayanPersonal/stacked-autoencoder-pytorch
+
 # Stacked AutoEncoder
 class SAE(nn.Module):
     def __init__(self, layers, dropout): # layer = [12, 300, 300, 300, 12]
@@ -64,7 +66,8 @@ class _AE(nn.Module):
         return h
 
 
-
+# Reference code : https://github.com/L1aoXingyu/pytorch-beginner/blob/master/08-AutoEncoder/simple_autoencoder.py
+# 수정해야함
 # Deep AutoEncoder 12 layer
 class DAE12(nn.Module):
     def __init__(self):
