@@ -42,7 +42,7 @@ class Decoder(nn.Module):
         # embeddings = self.embed(src.unsqueeze(2))  # (max_caption_length, batch_size, embed_dim)
         # Last Hidden
         if t == 0:
-            last_hidden = hidden.view(12, 6, 256)[-1].unsqueeze(1)
+            last_hidden = hidden.view(12, -1, self.d_hidden)[-1].unsqueeze(1)
         else:
             last_hidden = hidden
         # Bidirectional GRU
