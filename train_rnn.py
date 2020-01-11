@@ -26,22 +26,6 @@ def main(args):
 
     train_data_path = './preprocessing/total/preprocessed_train.h5'
     valid_data_path = './preprocessing/total/preprocessed_valid.h5'
-
-    with h5py.File(train_data_path, 'r') as f:
-        # List all groups
-        src = list(f.keys())[0] # Previous data
-        trg = list(f.keys())[1] # After data
-
-        pems_src_train = list(f[src])
-        pems_trg_train = list(f[trg])
-
-    with h5py.File(valid_data_path, 'r') as f:
-        # List all groups
-        src = list(f.keys())[0] # Previous data
-        trg = list(f.keys())[1] # After data
-
-        pems_src_valid = list(f[src])
-        pems_trg_valid = list(f[trg])
         
     spend_time = round((time.time() - start_time) / 60, 4)
     print(f'Done...! / {spend_time}min spend...!')
@@ -49,12 +33,12 @@ def main(args):
     print('DataLoader Setting...')
 
     dataset_dict = {
-        'train': CustomDataset(src=pems_src_train, trg=pems_trg_train),
-        'valid': CustomDataset(src=pems_src_valid, trg=pems_trg_valid)
+        'train': CustomDataset(train_data_path),
+        'valid': CustomDataset(valid_data_path)
     }
     dataloader_dict = {
-        'train': getDataLoader(dataset_dict['train'], args.batch_size, True),
-        'valid': getDataLoader(dataset_dict['valid'], args.batch_size, True)
+        'train': getDataLoader(dataset_dict['train'], args.batch_size, True, args.num_workers),
+        'valid': getDataLoader(dataset_dict['valid'], args.batch_size, True, args.num_workers)
     }
 
     spend_time = round((time.time() - start_time) / 60, 4)
