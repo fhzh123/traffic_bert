@@ -24,8 +24,8 @@ def main(args):
     print('Data Loading...')
     start_time = time.time()
 
-    train_data_path = './preprocessing/total/preprocessed_train.h5'
-    valid_data_path = './preprocessing/total/preprocessed_valid.h5'
+    train_data_path = './preprocessing/total2/preprocessed_train.h5'
+    valid_data_path = './preprocessing/total2/preprocessed_valid.h5'
         
     spend_time = round((time.time() - start_time) / 60, 4)
     print(f'Done...! / {spend_time}min spend...!')
@@ -84,7 +84,7 @@ def main(args):
             if phase == 'valid':
                 seq2seq.eval()
                 val_loss = 0
-            for stop_ix, (src, src_rev, trg) in enumerate(tqdm(dataloader_dict[phase])):
+            for stop_ix, (src, src_rev, _, trg) in enumerate(tqdm(dataloader_dict[phase])):
 
                 if phase == 'train' and stop_ix == 30000:
                     break
@@ -126,7 +126,7 @@ def main(args):
                 if not best_val_loss or val_loss < best_val_loss:
                     print("[!] saving model...")
                     val_loss_save = round(val_loss, 2)
-                    torch.save(model.state_dict(), f'./save/save_rnn_{nowDatetime}/model_{e}_{val_loss_save}.pt')
+                    torch.save(seq2seq.state_dict(), f'./save/save_rnn_{nowDatetime}/model_{e}_{val_loss_save}.pt')
                     best_val_loss = val_loss
 
         # Gradient Scheduler Step
@@ -153,6 +153,7 @@ if __name__ == '__main__':
     parser.add_argument('--dropout', type=float, default=0.2, help='Dropout Ratio; Default is 0.1')
 
     parser.add_argument('--print_freq', type=int, default=1000, help='Print train loss frequency; Default is 1000')
+    parser.add_argument('--num_workers', type=int, default=4)
     args = parser.parse_args()
 
     main(args)

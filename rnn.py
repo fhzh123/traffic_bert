@@ -63,15 +63,15 @@ class Seq2Seq(nn.Module):
 
     def forward(self, src, trg):
         max_len = trg.size(1)
-        outputs = torch.zeros(max_len, 4, self.encoder.d_hidden)
+        batch_size = trg.size(0)
+        outputs = torch.zeros(max_len, batch_size, self.encoder.d_hidden).cuda()
         # Encoding source sentences
         encoder_output, hidden = self.encoder(src)
         hidden = torch.tanh(self.linear(hidden))
         # Decoding
-        output = torch.zeros(4, 256).unsqueeze(1)
+        output = torch.zeros(batch_size, 256).unsqueeze(1).cuda()
         for t in range(12):
             output, hidden = self.decoder(output, t, hidden)
-            print(output.size())
             outputs[t] = output.squeeze(1)
         result = self.last_linear(outputs)
-        return result
+        return result.transpose(0, 1)

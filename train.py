@@ -25,11 +25,11 @@ def main(args):
 
     # Load Data
     print('Data Loading...')
+    print(args.repeat_input)
     print(args.src_rev_usage)
-    src_rev_usage = False
+    src_rev_usage = True
     print(src_rev_usage)
     start_time = time.time()
-
 
     # if args.data == 'pems':
     #     train_data_path = './preprocessing/pems_preprocessed_train.h5'
@@ -37,8 +37,8 @@ def main(args):
     # if args.data == 'metr':
     #     train_data_path = './preprocessing/metr_preprocessed_train.h5'
     #     valid_data_path = './preprocessing/metr_preprocessed_valid.h5'
-    train_data_path = './preprocessing/total/preprocessed_train.h5'
-    valid_data_path = './preprocessing/total/preprocessed_valid.h5'
+    train_data_path = './preprocessing/total2/preprocessed_train.h5'
+    valid_data_path = './preprocessing/total2/preprocessed_valid.h5'
         
     spend_time = round((time.time() - start_time) / 60, 4)
     print(f'Done...! / {spend_time}min spend...!')
@@ -107,10 +107,14 @@ def main(args):
             if phase == 'valid':
                 model.eval()
                 val_loss = 0
-            for src, src_rev, trg in tqdm(dataloader_dict[phase]):
+            for i, (src, src_rev, weekday, trg) in enumerate(tqdm(dataloader_dict[phase])):
+
+                if i >= 10000:
+                    break
                 # Input to Device(CUDA) with float tensor
                 src = src.float().to(device)
                 src_rev = src_rev.float().to(device)
+                weekday = weekday.to(device)
                 trg = trg.float().to(device)
 
                 # Optimizer Setting
@@ -118,7 +122,7 @@ def main(args):
 
                 # Model Training & Validation
                 with torch.set_grad_enabled(phase == 'train'):
-                    outputs = model(src, src_rev)
+                    outputs = model(src, src_rev, weekday)
                     loss = criterion(outputs.squeeze(2), trg)
                     # Backpropagate Loss
                     if phase == 'train':

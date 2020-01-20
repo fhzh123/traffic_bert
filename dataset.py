@@ -15,9 +15,10 @@ class CustomDataset(Dataset):
         
     def __getitem__(self, index):
         src = self.file[list(self.file.keys())[0]][index]
+        weekday = self.file[list(self.file.keys())[1]][index]
         src_rev = np.flip(src)
-        trg = self.file[list(self.file.keys())[1]][index]
-        return src, src_rev, trg
+        trg = self.file[list(self.file.keys())[2]][index]
+        return src, src_rev, weekday, trg
     
     def __len__(self):
         return self.num_data
@@ -27,14 +28,14 @@ class Transpose_tensor:
         self.dim = dim
 
     def transpose_tensor(self, batch):
-        (src, src_rev, trg) = zip(*batch)
+        (src, src_rev, weekday, trg) = zip(*batch)
         batch_size = len(src)
         #
         # src = torch.cat(src).view(-1, batch_size).transpose(0, 1)
         # src_rev = torch.cat(src_rev, dim=self.dim).view(-1, batch_size).transpose(0, 1)
         # trg = torch.cat(trg).view(-1, batch_size).transpose(0, 1)
 
-        return torch.tensor(src), torch.tensor(src_rev), torch.tensor(trg)
+        return torch.tensor(src), torch.tensor(src_rev), torch.LongTensor(weekday), torch.tensor(trg)
 
     def __call__(self, batch):
         return self.transpose_tensor(batch)
@@ -77,8 +78,10 @@ class PadCollate:
         trg = [pad_tensor(torch.LongTensor(seq), output_seq_len, self.dim) for seq in trg]
         trg = torch.cat(trg)
         trg = trg.view(batch_size, output_seq_len)
+
+        weekday = torch.LongTensor(weekday)
         
-        return src, src_rev, trg
+        return src, src_rev, weekday, trg
 
     def __call__(self, batch):
         return self.pad_collate(batch)

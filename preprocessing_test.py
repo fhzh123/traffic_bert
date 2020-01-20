@@ -5,7 +5,9 @@ import time
 import argparse
 import numpy as np
 import pandas as pd
+
 from tqdm import tqdm
+from random import shuffle
 
 def main(args):
     start_time = time.time()
@@ -23,29 +25,35 @@ def main(args):
     prev_data = list()
     after_data = list()
     weekday_data = list()
-    for dat in data_dict.keys():
-        print(f'{dat} start...')
-        data = data_dict[dat]
+
+    dat = 'pems_bay'
+
+    data = data_dict[dat]
+
+    if dat == 'pems_l':
+        print(data.columns)
+        data.index = pd.to_datetime(data.index)
+    
+    col_list = list(data.columns)
+    shuffle(col_list)
+    
+    for col in tqdm(col_list[:10]):
         if dat == 'pems_l':
-            print(data.columns)
-            data.index = pd.to_datetime(data.index)
-        for col in tqdm(data.columns):
-            if dat == 'pems_l':
-                for i in range(data.shape[0] - 7000):
-                    input_ = data[col].iloc[i:i+12].tolist()
-                    output_ = data[col].iloc[i+12:i+24].tolist()
-                    if 0 not in input_ and 0 not in output_:
-                        prev_data.append(input_)
-                        after_data.append(output_)
-                        weekday_data.append(data.index[i].weekday())
-            else:
-                for i in range(data.shape[0] - 20000):
-                    input_ = data[col].iloc[i:i+12].tolist()
-                    output_ = data[col].iloc[i+12:i+24].tolist()
-                    if 0 not in input_ and 0 not in output_:
-                        prev_data.append(input_)
-                        after_data.append(output_)
-                        weekday_data.append(data.index[i].weekday())
+            for i in range(data.shape[0]):
+                input_ = data[col].iloc[i:i+12].tolist()
+                output_ = data[col].iloc[i+12:i+24].tolist()
+                if 0 not in input_ and 0 not in output_:
+                    prev_data.append(input_)
+                    after_data.append(output_)
+                    weekday_data.append(data.index[i].weekday())
+        else:
+            for i in range(data.shape[0]):
+                input_ = data[col].iloc[i:i+12].tolist()
+                output_ = data[col].iloc[i+12:i+24].tolist()
+                if 0 not in input_ and 0 not in output_:
+                    prev_data.append(input_)
+                    after_data.append(output_)
+                    weekday_data.append(data.index[i].weekday())
     print('Done!')
 
     # Train & Valid & Test Split
@@ -76,19 +84,8 @@ def main(args):
     print('Saving...')
     if not os.path.exists('./preprocessing/total2'):
         os.mkdir('preprocessing/total2')
-    hf_data_train = h5py.File(f'./preprocessing/total2/preprocessed_train.h5', 'w')
-    hf_data_train.create_dataset(f'train_src', data=train_data_src)
-    hf_data_train.create_dataset(f'train_src_week', data=train_data_src_week)
-    hf_data_train.create_dataset(f'train_trg', data=train_data_trg)
-    hf_data_train.close()
 
-    hf_data_valid = h5py.File(f'./preprocessing/total2/preprocessed_valid.h5', 'w')
-    hf_data_valid.create_dataset(f'valid_src', data=valid_data_src)
-    hf_data_valid.create_dataset(f'valid_src_week', data=valid_data_src_week)
-    hf_data_valid.create_dataset(f'valid_trg', data=valid_data_trg)
-    hf_data_valid.close()
-
-    hf_data_test = h5py.File(f'./preprocessing/total2/preprocessed_test.h5', 'w')
+    hf_data_test = h5py.File(f'./preprocessing/total2/preprocessed_test_pems_bay.h5', 'w')
     hf_data_test.create_dataset(f'test_src', data=test_data_src)
     hf_data_test.create_dataset(f'test_src_week', data=test_data_src_week)
     hf_data_test.create_dataset(f'test_trg', data=test_data_trg)

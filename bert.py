@@ -26,16 +26,13 @@ class littleBERT(nn.Module):
         self.dropout = nn.Dropout(dropout)
 
         # Source Embedding Part - (1) continous variable to vector
-        # self.prelu = nn.PReLU()
-        # self.lrelu = nn.LeakyReLU()
         self.embed1 = nn.Linear(1, d_embedding)
         self.embed2 = nn.Linear(d_embedding, d_model)
 
         # Source Embedding Part - (2) weekday
-        self.embed_weekday1 = nn.Embedding(7, self.d_embedding)
-        self.embed_weekday2 = nn.Embedding(self.d_embedding, self.d_model)
+        self.embed_weekday = nn.Embedding(7, d_embedding)
 
-        # Source Embedding Part - (2) weekday
+        # Source Embedding Part - (3) reverse
         self.embed1_rev = nn.Linear(1, d_embedding)
         self.embed2_rev = nn.Linear(d_embedding, d_model)
 
@@ -51,19 +48,22 @@ class littleBERT(nn.Module):
             TransformerEncoderLayer(d_model, encoder_self_attn, dim_feedforward,
                 activation='gelu', dropout=dropout) for i in range(n_layers)])
 
-    def forward(self, src, src_rev):
+    def forward(self, src, src_rev, weekday):
 
         if self.repeat_input:
-            encoder_out1 = self.embed2(src.unsqueeze(2).repeat(1, 1, self.d_embedding)).transpose(0, 1)
+            encoder_out1 = self.embed2(src.unsqueeze(2).repeat(1, 1, self.d_embedding) + 
+                                       self.embed_weekday(weekday).unsqueeze(1).repeat(1,12,1)).transpose(0, 1)
         else:
-            encoder_out1 = self.embed2(self.embed1(src.unsqueeze(2))).transpose(0, 1)
+            encoder_out1 = self.embed2(self.embed1(src.unsqueeze(2)) +
+                                       self.embed_weekday(weekday).unsqueeze(1).repeat(1,12,1)).transpose(0, 1)
 
         if self.src_rev_usage:
             if self.repeat_input:
-                encoder_out2 = self.embed2(src_rev.unsqueeze(2).repeat(1, 1, self.d_embedding)).transpose(0, 1)
+                encoder_out2 = self.embed2(src_rev.unsqueeze(2).repeat(1, 1, self.d_embedding) + 
+                                           self.embed_weekday(weekday).unsqueeze(1).repeat(1,12,1)).transpose(0, 1)
             else:
-                encoder_out2 = self.embed2_rev(self.embed1_rev(src_rev.unsqueeze(2))).transpose(0, 1)
-
+                encoder_out2 = self.embed2_rev(self.embed1_rev(src_rev.unsqueeze(2)) + 
+                                               self.embed_weekday(weekday).unsqueeze(1).repeat(1,12,1)).transpose(0, 1)
         for i in range(len(self.encoders)):
             encoder_out1 = self.encoders[i](encoder_out1)
         if self.src_rev_usage:
